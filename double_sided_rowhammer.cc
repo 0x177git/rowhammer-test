@@ -75,14 +75,15 @@ uint64_t GetPageFrameNumber(int pagemap, uint8_t* virtual_address) {
   return page_frame_number;
 }
 
-void SetupMapping(uint64_t* mapping_size, void** mapping) {
+void SetupMapping(uint64_t* mapping_size, void** mapping) { 
   *mapping_size = 
     static_cast<uint64_t>((static_cast<double>(GetPhysicalMemorySize()) * 
-          fraction_of_physical_memory));
+          fraction_of_physical_memory)); // tamanho total * pedaço da memoria que designamos 
 
-  *mapping = mmap(NULL, *mapping_size, PROT_READ | PROT_WRITE,
-      MAP_POPULATE | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-  assert(*mapping != (void*)-1);
+  *mapping = mmap(NULL, *mapping_size, PROT_READ | PROT_WRITE, 
+      MAP_POPULATE | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0); // If addr is NULL, then the kernel chooses the (page-aligned)
+      // address at which to create the mapping, pedaço da memoria,RW , gera uma prefault para que o kernel carrega a pagina de memoria, pagina privada, iniciliazdo como um mapeamento 0 sem respaldo de um descritor, 0)
+  assert(*mapping != (void*)-1); // verifica que o mapeamento foi feito
 
   // Initialize the mapping so that the pages are non-empty.
   printf("[!] Initializing large memory mapping ...");
@@ -93,27 +94,29 @@ void SetupMapping(uint64_t* mapping_size, void** mapping) {
   }
   printf("done\n");
 }
+// ate aqui, foi lido o tamanho total da memoria, foram definidas variaveis pra alocar 1gb, e foram mapeadas com flags -> prefault e foram carregados dados no mapeamento
 
 uint64_t HammerAddressesStandard(
-    const std::pair<uint64_t, uint64_t>& first_range,
-    const std::pair<uint64_t, uint64_t>& second_range,
-    uint64_t number_of_reads) {
-  volatile uint64_t* first_pointer =
-      reinterpret_cast<uint64_t*>(first_range.first);
+    const std::pair<uint64_t, uint64_t>& first_range, // constante do tipo 64bits, pode conter ateh 2 (pair) {64_t, 64_t}
+    const std::pair<uint64_t, uint64_t>& second_range, // a funçao vai receber dois endereços de 64 bits e e um inteiro de tentativas (read)
+    uint64_t number_of_reads) 
+{
+  volatile uint64_t* first_pointer = // ponteiro volatil de endereço 
+      reinterpret_cast<uint64_t*>(first_range.first); //você está convertendo um ponteiro para um tipo de dado arbitrário em um ponteiro para um inteiro de 64 bits
   volatile uint64_t* second_pointer =
-      reinterpret_cast<uint64_t*>(second_range.first);
-  uint64_t sum = 0;
+      reinterpret_cast<uint64_t*>(second_range.first); // converte os dois endereços passados como um dado, para ponteiro de 64bits
+  uint64_t sum = 0; 
 
-  while (number_of_reads-- > 0) {
-    sum += first_pointer[0];
+  while (number_of_reads-- > 0) { // aqui ele começaram a iterar no parametro de leituras ateh que seja igual a 0
+    sum += first_pointer[0]; // sum = 0 + ponteiro[primeiro endereço passado pelo parametro 64_t]
     sum += second_pointer[0];
-    asm volatile(
+    asm volatile( // exploit que limpa o cache e recarrega as celulas do endereço
         "clflush (%0);\n\t"
         "clflush (%1);\n\t"
         : : "r" (first_pointer), "r" (second_pointer) : "memory");
   }
-  return sum;
-}
+  return sum; //retorna sum
+} //fim do nucleo do exploit -> carregar e descarregar as celulas da linha (endereço)
 
 typedef uint64_t(HammerFunction)(
     const std::pair<uint64_t, uint64_t>& first_range,
@@ -210,10 +213,10 @@ uint64_t HammerAllReachablePages(uint64_t presumed_row_size,
   return total_bitflips;
 }
 
-void HammerAllReachableRows(HammerFunction* hammer, uint64_t number_of_reads) {
-  uint64_t mapping_size;
+void HammerAllReachableRows(HammerFunction* hammer, uint64_t number_of_reads) { // recebe como ponteiro o nucleo do exploit e 1gb
+  uint64_t mapping_size; 
   void* mapping;
-  SetupMapping(&mapping_size, &mapping);
+  SetupMapping(&mapping_size, &mapping); // tamanho do mapeamento e 
 
   HammerAllReachablePages(1024*256, mapping, mapping_size,
                           hammer, number_of_reads);
@@ -253,5 +256,5 @@ int main(int argc, char** argv) {
 
   printf("[!] Starting the testing process...\n");
   alarm(number_of_seconds_to_hammer);
-  HammerAllReachableRows(&HammerAddressesStandard, number_of_reads);
+  HammerAllReachableRows(&HammerAddressesStandard, number_of_reads); // passa 1gb e uma referencia ao nucleo do exploit
 }
