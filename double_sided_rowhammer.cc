@@ -47,6 +47,9 @@
 #include <unistd.h>
 #include <vector>
 
+//PAGE_SIZE 0x1000
+
+
 namespace {
 
 // The fraction of physical memory that should be mapped for testing.
@@ -86,6 +89,14 @@ void SetupMapping(uint64_t* mapping_size, void** mapping) {
       MAP_POPULATE | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0); // If addr is NULL, then the kernel chooses the (page-aligned)
       // address at which to create the mapping, pedaço da memoria,RW , gera uma prefault para que o kernel carrega a pagina de memoria, pagina privada, iniciliazdo como um mapeamento 0 sem respaldo de um descritor, 0)
   assert(*mapping != (void*)-1); // verifica que o mapeamento foi feito
+
+  
+  
+  // we first deliberately fragment physical memory so that the kernel’s allocations from physical memory are randomised: // FAILURE PRE
+
+
+
+  
 
   // Initialize the mapping so that the pages are non-empty.
   printf("[!] Initializing large memory mapping ...");
