@@ -22,16 +22,16 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-const size_t page_size = 1 << 12;
+const size_t page_size = 1 << 12; // 4k frame 
 
-uint64_t get_physical_frame_num(uintptr_t virtual_addr) {
+uint64_t get_physical_frame_num(uintptr_t virtual_addr) { //
   int fd = open("/proc/self/pagemap", O_RDONLY);
   assert(fd >= 0); 
 
-  off_t pos = lseek(fd, (virtual_addr / page_size) * 8, SEEK_SET);
+  off_t pos = lseek(fd, (virtual_addr / page_size) * 8, SEEK_SET); // pointer / 4k * 8 read pagemap
   assert(pos >= 0); 
   uint64_t value;
-  int got = read(fd, &value, 8); 
+  int got = read(fd, &value, 8); // buffer read
   assert(got == 8); 
   int rc = close(fd);
   assert(rc == 0); 
@@ -69,21 +69,21 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-  size_t chunk_size = page_num * page_size; 
-  size_t iter = 0;
+  size_t chunk_size = page_num * page_size;  // 4k * qp(256)
+  size_t iter = 0; // i
 
   while (1) {
     fprintf(stderr, "iteration %lu ... \n", iter); 
     iter++;
 
-    char *chunk = (char *) mmap(
+    char *chunk = (char *) mmap( // char, null, 4k / quantidade de paginas , RW PREAFULT ANON(NULL) PRIV, non descitor file, 
         NULL, chunk_size, PROT_READ | PROT_WRITE,
         MAP_POPULATE | MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     assert(chunk != MAP_FAILED);
 
-    for (size_t i = 0; i < page_num; i++) {
-      char *va = chunk + page_size * i;
-      uint64_t pfn = get_physical_frame_num((uintptr_t)va);
+    for (size_t i = 0; i < page_num; i++) { 
+      char *va = chunk + page_size * i; // virt addr, descriot mmap + 4k * i (index)
+      uint64_t pfn = get_physical_frame_num((uintptr_t)va); // 
       fprintf(out, "0x%" PRIx64 " ", pfn);
     }
 
